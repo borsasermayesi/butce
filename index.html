@@ -630,6 +630,7 @@ function renderMonthDesktop(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKal
     <div class="section-body open">`;
 
     if(isY){html+=`<div class="tbl-row yatirim-row header"><div></div><div>Açıklama</div><div>Miktar</div><div>Birim Fiyat</div><div style="text-align:right">Tutar</div><div style="text-align:center">Ödendi</div><div></div></div>`;}
+    else if(b.id==='ALIŞVERİŞ'){html+=`<div class="tbl-row header"><div></div><div>Sürd.</div><div>Açıklama</div><div style="text-align:right">Tutar</div><div style="text-align:center">Durum</div><div style="text-align:center">Ödendi</div><div style="text-align:center">Taksit</div><div></div></div>`;}
     else{html+=`<div class="tbl-row header"><div></div><div>Sürd.</div><div>Açıklama</div><div style="text-align:right">Tutar</div><div style="text-align:center">Son Ödeme</div><div style="text-align:center">Ödendi</div><div style="text-align:center">Taksit</div><div></div></div>`;}
 
     rows.forEach((r,i)=>{
@@ -668,7 +669,7 @@ function renderMonthDesktop(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKal
             onfocus="this.value=getRaw(${y},'${ay}','${b.id}',${i});this.select()"
             onblur="var rv=db_data.years[${y}].months['${ay}'].bolumler['${b.id}'].rows[${i}];this.value=rv.tutar?(rv.tutar<0?'-':'')+fmt(rv.tutar):''"
             onchange="rUp('${b.id}',${i},'tutar',this.value)" onkeydown="if(event.key==='Enter')focusNextInput(this)"></div>
-          <div style="text-align:center"><input class="tarih-input" style="background:${stl.bg};color:${stl.text};text-decoration:${stl.deco||'none'}" value="${r.tarih||''}" placeholder="GG.AA" onfocus="this.select()" onblur="rUp('${b.id}',${i},'tarih',this.value)" onkeydown="if(event.key==='Enter'){rUp('${b.id}',${i},'tarih',this.value);focusNextInput(this);}"></div>
+          ${b.id==='ALIŞVERİŞ'?`<div style="text-align:center;font-size:11px;font-weight:700;color:${r.isPaid?'#15803d':'#64748b'}">${r.isPaid?'✓ Ödendi':'—'}</div>`:`<div style="text-align:center"><input class="tarih-input" style="background:${stl.bg};color:${stl.text};text-decoration:${stl.deco||'none'}" value="${r.tarih||''}" placeholder="GG.AA" onfocus="this.select()" onblur="rUp('${b.id}',${i},'tarih',this.value)" onkeydown="if(event.key==='Enter'){rUp('${b.id}',${i},'tarih',this.value);focusNextInput(this);}"></div>`}
           <div style="text-align:center"><input type="checkbox" class="paid-check" ${r.isPaid?'checked':''} onchange="rUp('${b.id}',${i},'isPaid',this.checked)"></div>
           ${taksitCell}
           <div class="del-btn" onclick="rDel('${b.id}',${i})">✕</div>
@@ -733,7 +734,8 @@ function renderMonthMobile(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKala
       const ph=b.id==='KREDİ KARTI'?'Banka Adı':'Açıklama';
 
       let metaHtml='';
-      if(r.tarih)metaHtml+=`<span class="m-tarih" style="background:${stl.bg};color:${stl.text}">${r.tarih}</span>`;
+      if(r.tarih&&b.id!=="ALIŞVERİŞ")metaHtml+=`<span class="m-tarih" style="background:${stl.bg};color:${stl.text}">${r.tarih}</span>`;
+      if(b.id==="ALIŞVERİŞ")metaHtml+=`<span class="m-tarih" style="background:${r.isPaid?"#f0fdf4":"#f1f5f9"};color:${r.isPaid?"#15803d":"#94a3b8"}">${r.isPaid?"✓ Ödendi":"bekliyor"}</span>`;
       if(r.taksit>0){if(isLast)metaHtml+=`<span class="m-taksit-badge last">🎉 Son!</span>`;else metaHtml+=`<span class="m-taksit-badge">${tIdx>0?tIdx+'/':''}${r.taksit}</span>`;}
       if(r.copy&&!isY)metaHtml+=`<span class="m-copy-dot on">🔄</span>`;
 
@@ -763,8 +765,8 @@ function renderMonthMobile(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKala
         html+=`<div class="m-edit ${editOpen?'open':''}" id="ep-${r.id}">
           <div class="m-edit-grid">
             <div class="m-edit-field full"><label>${ph}</label><input value="${r.ad||''}" placeholder="${ph}" onchange="rUp('${b.id}',${i},'ad',this.value)"></div>
-            <div class="m-edit-field"><label>Tutar</label><input type="number" inputmode="decimal" value="${r.tutar?Math.abs(r.tutar):''}" placeholder="0" onfocus="this.value=getRaw(${y},'${ay}','${b.id}',${i})" onblur="var rv=db_data.years[${y}].months['${ay}'].bolumler['${b.id}'].rows[${i}];this.value=rv.tutar?Math.abs(rv.tutar):''" onchange="rUp('${b.id}',${i},'tutar',this.value)"></div>
-            <div class="m-edit-field"><label>Son Ödeme</label><input value="${r.tarih||''}" placeholder="GG.AA" inputmode="numeric" onblur="rUp('${b.id}',${i},'tarih',this.value)"></div>
+            <div class="m-edit-field"><label>Tutar</label><input type="text" inputmode="decimal" value="${r.tutar?Math.abs(r.tutar):''}" placeholder="0" onfocus="this.value=getRaw(${y},'${ay}','${b.id}',${i});this.select()" onblur="var rv=db_data.years[${y}].months['${ay}'].bolumler['${b.id}'].rows[${i}];this.value=rv.tutar?Math.abs(rv.tutar):''" onchange="rUp('${b.id}',${i},'tutar',this.value)"></div>
+            ${b.id==='ALIŞVERİŞ'?`<div class="m-edit-field"><label>Son Ödeme</label><input value="Ödendi ✓" readonly style="color:#15803d;font-weight:700;background:#f0fdf4"></div>`:`<div class="m-edit-field"><label>Son Ödeme</label><input value="${r.tarih||''}" placeholder="GG.AA" inputmode="numeric" onblur="rUp('${b.id}',${i},'tarih',this.value)"></div>`}
             <div class="m-edit-field"><label>Taksit</label><input type="number" inputmode="numeric" value="${r.taksit||''}" placeholder="—" onchange="rUp('${b.id}',${i},'taksit',this.value)"></div>
             <div class="m-edit-field"><label>Taksit No</label><input readonly value="${tIdx>0?tIdx+' / '+r.taksit:''}" placeholder="—" style="color:var(--muted)"></div>
           </div>
@@ -865,19 +867,25 @@ function propagate(startY,startAy,bId,row){
     if(shouldExist){
       const newR={...row,isPaid:false};
       if(bId==='KREDİ KARTI'){
+        // KK: tutar sıfırla, tarihi ilerlet (adjNext)
         newR.tutar=0;newR.tutar_raw='';
         const d=row.baseDay||(row.tarih?.includes('.')?parseInt(row.tarih.split('.')[0]):null)||1;
         newR.baseDay=d;
         newR.tarih=fmtDate(adjNext(new Date(targetY,mIdx,Math.min(d,new Date(targetY,mIdx+1,0).getDate()))));
-      }else if(steps>0){
-        /* FİX: taksit tarihi — girilen günü koru, ay sonu değil */
+      }else{
+        // Taksit veya sürekli: girilen günü koru, tatil/hafta sonuna denk gelirse önceki iş gününe çek
         const bd=row.baseDay||(row.tarih?.includes('.')?parseInt(row.tarih.split('.')[0]):null)||null;
         if(bd){
           const lastOfMonth=new Date(targetY,mIdx+1,0).getDate();
-          newR.tarih=fmtDate(adjPrev(new Date(targetY,mIdx,Math.min(bd,lastOfMonth))));
-        }else{
+          const targetDate=new Date(targetY,mIdx,Math.min(bd,lastOfMonth));
+          // Tatil/hafta sonu ise önceki iş günü
+          newR.tarih=fmtDate(adjPrev(targetDate));
+          newR.baseDay=bd; // baseDay'i koru, bir sonraki ay için
+        }else if(steps>0){
+          // baseDay yoksa (eski veri): ay sonu iş günü
           newR.tarih=fmtDate(getLastBiz(targetY,mIdx));
         }
+        // copy için baseDay yoksa tarihi olduğu gibi bırak
       }
       if(idx>-1)targetRows[idx]=newR;else targetRows.push(newR);
 
