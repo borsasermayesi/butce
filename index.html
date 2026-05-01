@@ -735,7 +735,7 @@ function renderMonthMobile(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKala
 
       let metaHtml='';
       if(r.tarih&&b.id!=="ALIŞVERİŞ")metaHtml+=`<span class="m-tarih" style="background:${stl.bg};color:${stl.text}">${r.tarih}</span>`;
-      if(b.id==="ALIŞVERİŞ")metaHtml+=`<span class="m-tarih" style="background:${r.isPaid?"#f0fdf4":"#f1f5f9"};color:${r.isPaid?"#15803d":"#94a3b8"}">${r.isPaid?"✓ Ödendi":"bekliyor"}</span>`;
+      if(b.id==="ALIŞVERİŞ"){const _bg=r.isPaid?"#f0fdf4":"#f1f5f9";const _cl=r.isPaid?"#15803d":"#94a3b8";const _tx=r.isPaid?"✓ Ödendi":"bekliyor";metaHtml+=`<span class="m-tarih" style="background:${_bg};color:${_cl}">${_tx}</span>`;}
       if(r.taksit>0){if(isLast)metaHtml+=`<span class="m-taksit-badge last">🎉 Son!</span>`;else metaHtml+=`<span class="m-taksit-badge">${tIdx>0?tIdx+'/':''}${r.taksit}</span>`;}
       if(r.copy&&!isY)metaHtml+=`<span class="m-copy-dot on">🔄</span>`;
 
