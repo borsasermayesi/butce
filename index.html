@@ -433,6 +433,17 @@ function initYear(y,doSave=true){
   }
 }
 
+
+/* ALIŞVERİŞ migration: tutarı olan satırları otomatik ödendi yap */
+function migrateAlisveris(){
+  Object.values(db_data.years||{}).forEach(yr=>{
+    Object.values(yr.months||{}).forEach(mn=>{
+      const rows=mn.bolumler?.['ALIŞVERİŞ']?.rows;
+      if(!rows)return;
+      rows.forEach(r=>{if(r.tutar&&r.tutar!==0&&!r.isPaid)r.isPaid=true;});
+    });
+  });
+}
 /* ══ FIREBASE ══ */
 function loadSync(){
   if(!db_cloud){
@@ -440,20 +451,20 @@ function loadSync(){
     const local=localStorage.getItem('butce_offline');
     if(local){try{db_data=JSON.parse(local);}catch(e){}}
     if(!Object.keys(db_data.years).length)initYear(currentView.y,false);
-    refresh();
+    migrateAlisveris();refresh();
     return;
   }
   db_cloud.collection('budgets').doc(budgetId).onSnapshot(doc=>{
     if(doc.exists){
-      try{db_data=JSON.parse(doc.data().data);setSyncStatus(true);refresh();}
+      try{db_data=JSON.parse(doc.data().data);setSyncStatus(true);migrateAlisveris();refresh();}
       catch(e){toast('Veri parse hatası.');}
-    }else{initYear(currentView.y);refresh();}
+    }else{initYear(currentView.y);migrateAlisveris();refresh();}
   },err=>{
     setSyncStatus(false);toast('Offline çalışılıyor.');
     const local=localStorage.getItem('butce_offline');
     if(local){try{db_data=JSON.parse(local);}catch(e){}}
     if(!Object.keys(db_data.years).length)initYear(currentView.y,false);
-    refresh();
+    migrateAlisveris();refresh();
   });
 }
 function setSyncStatus(ok){
@@ -1032,7 +1043,7 @@ setTimeout(function(){
     }catch(e){}
     if(!Object.keys(db_data.years).length)initYear(currentView.y,false);
     setSyncStatus(false);
-    refresh();
+    migrateAlisveris();refresh();
   }
 },4000);
 loadSync();
