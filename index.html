@@ -9,9 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Bütçe Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js" onerror="window._firebaseFailed=true"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js" onerror="window._firebaseFailed=true"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js" onerror="window._chartjsFailed=true"></script>
 <style>
 :root {
   --bg:#f8fafc;--surface:#fff;--border:#e2e8f0;--text:#0f172a;--muted:#64748b;
@@ -304,6 +304,11 @@ body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--tex
 <div class="toast" id="toast"></div>
 
 <script>
+window.onerror=function(msg,src,line,col,err){
+  document.body.style.background='#fff';
+  document.body.innerHTML='<div style="padding:20px;font-family:monospace;font-size:12px;color:red;word-break:break-all"><b>JS HATASI:</b><br><br>'+msg+'<br><br>Satır: '+line+', Sütun: '+col+'<br><br>'+(err?err.stack||String(err):'')+'</div>';
+  return false;
+};
 /* ══ PLATFORM ══ */
 const isMobile=()=>window.innerWidth<768;
 
@@ -316,9 +321,15 @@ const firebaseConfig={
   messagingSenderId:"438608180746",
   appId:"1:438608180746:web:95c95ebb8c7749024611f3"
 };
-firebase.initializeApp(firebaseConfig);
-const db_cloud=firebase.firestore();
-const budgetId="PRO-BUTCE-MASTER-V2";
+let db_cloud=null;
+const _urlUser=new URLSearchParams(window.location.search).get('u');
+const budgetId=_urlUser?'PRO-BUTCE-'+_urlUser.toUpperCase():'PRO-BUTCE-MASTER-V2';
+try{
+  if(typeof firebase!=='undefined'){
+    firebase.initializeApp(firebaseConfig);
+    db_cloud=firebase.firestore();
+  }
+}catch(e){db_cloud=null;}
 
 /* ══ SABİTLER ══ */
 const AY_ADLARI=['OCAK','ŞUBAT','MART','NİSAN','MAYIS','HAZİRAN','TEMMUZ','AĞUSTOS','EYLÜL','EKİM','KASIM','ARALIK'];
@@ -424,6 +435,14 @@ function initYear(y,doSave=true){
 
 /* ══ FIREBASE ══ */
 function loadSync(){
+  if(!db_cloud){
+    setSyncStatus(false);
+    const local=localStorage.getItem('butce_offline');
+    if(local){try{db_data=JSON.parse(local);}catch(e){}}
+    if(!Object.keys(db_data.years).length)initYear(currentView.y,false);
+    refresh();
+    return;
+  }
   db_cloud.collection('budgets').doc(budgetId).onSnapshot(doc=>{
     if(doc.exists){
       try{db_data=JSON.parse(doc.data().data);setSyncStatus(true);refresh();}
@@ -444,7 +463,7 @@ function setSyncStatus(ok){
 function save(){
   const json=JSON.stringify(db_data);localStorage.setItem('butce_offline',json);
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>{db_cloud.collection('budgets').doc(budgetId).set({data:json}).catch(()=>toast('Kayıt hatası.'));},600);
+  if(db_cloud)saveTimer=setTimeout(()=>{db_cloud.collection('budgets').doc(budgetId).set({data:json}).catch(()=>toast('Kayıt hatası.'));},600);
 }
 function refresh(){if(currentView.screen==='month')showMonth(currentView.y,currentView.ay);else showDashboard(currentView.dashYear);}
 
@@ -660,7 +679,7 @@ function renderMonthDesktop(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKal
         const td=r.tutar?(r.tutar<0?'-':'')+fmt(r.tutar):'';
         const taksitCell=isLast
           ?`<div><div class="taksit-badge last">🎉 Son!</div></div>`
-          :`<div><div class="taksit-badge">${tIdx>0?`<span style="color:#64748b">${tIdx}/</span>`:''}<input type="number" style="width:28px;text-align:center;font-weight:800;font-family:'IBM Plex Mono'" value="${r.taksit||''}" placeholder="—" onchange="rUp('${b.id}',${i},'taksit',this.value)"></div></div>`;
+          :`<div><div class="taksit-badge">${tIdx>0?'<span style="color:#64748b">'+tIdx+'/</span>':''}<input type="number" style="width:28px;text-align:center;font-weight:800;font-family:'IBM Plex Mono'" value="${r.taksit||''}" placeholder="—" onchange="rUp('${b.id}',${i},'taksit',this.value)"></div></div>`;
         html+=`<div class="tbl-row ${rowCls}">
           <div>${getBankLogo(r.ad)}</div>
           <div class="copy-btn ${r.copy?'active':''}" onclick="toggleCopy('${b.id}',${i})" title="Sürekli">🔄</div>
@@ -669,7 +688,7 @@ function renderMonthDesktop(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKal
             onfocus="this.value=getRaw(${y},'${ay}','${b.id}',${i});this.select()"
             onblur="var rv=db_data.years[${y}].months['${ay}'].bolumler['${b.id}'].rows[${i}];this.value=rv.tutar?(rv.tutar<0?'-':'')+fmt(rv.tutar):''"
             onchange="rUp('${b.id}',${i},'tutar',this.value)" onkeydown="if(event.key==='Enter')focusNextInput(this)"></div>
-          ${b.id==='ALIŞVERİŞ'?`<div style="text-align:center;font-size:11px;font-weight:700;color:${r.isPaid?'#15803d':'#64748b'}">${r.isPaid?'✓ Ödendi':'—'}</div>`:`<div style="text-align:center"><input class="tarih-input" style="background:${stl.bg};color:${stl.text};text-decoration:${stl.deco||'none'}" value="${r.tarih||''}" placeholder="GG.AA" onfocus="this.select()" onblur="rUp('${b.id}',${i},'tarih',this.value)" onkeydown="if(event.key==='Enter'){rUp('${b.id}',${i},'tarih',this.value);focusNextInput(this);}"></div>`}
+          ${(function(){if(b.id==='ALIŞVERİŞ'){return '<div style="text-align:center;font-size:11px;font-weight:700;color:'+(r.isPaid?'#15803d':'#64748b')+'">'+(r.isPaid?'✓ Ödendi':'—')+'</div>';}else{return '<div style="text-align:center"><input class="tarih-input" style="background:'+stl.bg+';color:'+stl.text+';text-decoration:'+(stl.deco||'none')+'" value="'+(r.tarih||'')+'" placeholder="GG.AA" onfocus="this.select()" onblur="rUp(\''+b.id+'\','+i+',\'tarih\',this.value)" onkeydown="if(event.key===\'Enter\'){rUp(\''+b.id+'\','+i+',\'tarih\',this.value);focusNextInput(this);}"></div>';}})()}
           <div style="text-align:center"><input type="checkbox" class="paid-check" ${r.isPaid?'checked':''} onchange="rUp('${b.id}',${i},'isPaid',this.checked)"></div>
           ${taksitCell}
           <div class="del-btn" onclick="rDel('${b.id}',${i})">✕</div>
@@ -735,14 +754,14 @@ function renderMonthMobile(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKala
 
       let metaHtml='';
       if(r.tarih&&b.id!=="ALIŞVERİŞ")metaHtml+=`<span class="m-tarih" style="background:${stl.bg};color:${stl.text}">${r.tarih}</span>`;
-      if(b.id==="ALIŞVERİŞ"){const _bg=r.isPaid?"#f0fdf4":"#f1f5f9";const _cl=r.isPaid?"#15803d":"#94a3b8";const _tx=r.isPaid?"✓ Ödendi":"bekliyor";metaHtml+=`<span class="m-tarih" style="background:${_bg};color:${_cl}">${_tx}</span>`;}
+      if(b.id==="ALIŞVERİŞ"){var _bg=r.isPaid?"#f0fdf4":"#f1f5f9";var _cl=r.isPaid?"#15803d":"#94a3b8";var _tx=r.isPaid?"✓ Ödendi":"bekliyor";metaHtml+=`<span class="m-tarih" style="background:${_bg};color:${_cl}">${_tx}</span>`;}
       if(r.taksit>0){if(isLast)metaHtml+=`<span class="m-taksit-badge last">🎉 Son!</span>`;else metaHtml+=`<span class="m-taksit-badge">${tIdx>0?tIdx+'/':''}${r.taksit}</span>`;}
       if(r.copy&&!isY)metaHtml+=`<span class="m-copy-dot on">🔄</span>`;
 
       html+=`<div class="m-row ${rowCls}" onclick="toggleMobEdit('${r.id}')">
         ${getBankLogo(r.ad,true)}
         <div class="m-body">
-          <div class="m-ad ${r.isPaid?'paid-txt':''}">${r.ad||`<span style="color:#cbd5e1">${ph} girin</span>`}</div>
+          <div class="m-ad ${r.isPaid?'paid-txt':''}">${r.ad||'<span style="color:#cbd5e1">'+ph+' girin</span>'}</div>
           <div class="m-meta">${metaHtml}</div>
         </div>
         <div class="m-right">
@@ -766,7 +785,7 @@ function renderMonthMobile(y,ay,m,maas,giderOdenen,perc,barColor,hasNote,netKala
           <div class="m-edit-grid">
             <div class="m-edit-field full"><label>${ph}</label><input value="${r.ad||''}" placeholder="${ph}" onchange="rUp('${b.id}',${i},'ad',this.value)"></div>
             <div class="m-edit-field"><label>Tutar</label><input type="text" inputmode="text" value="${r.tutar?Math.abs(r.tutar):''}" placeholder="0" onfocus="this.value=getRaw(${y},'${ay}','${b.id}',${i});this.select()" onblur="var rv=db_data.years[${y}].months['${ay}'].bolumler['${b.id}'].rows[${i}];this.value=rv.tutar?Math.abs(rv.tutar):''" onchange="rUp('${b.id}',${i},'tutar',this.value)"></div>
-            ${b.id==='ALIŞVERİŞ'?`<div class="m-edit-field"><label>Son Ödeme</label><input value="Ödendi ✓" readonly style="color:#15803d;font-weight:700;background:#f0fdf4"></div>`:`<div class="m-edit-field"><label>Son Ödeme</label><input value="${r.tarih||''}" placeholder="GG.AA" inputmode="numeric" onblur="rUp('${b.id}',${i},'tarih',this.value)"></div>`}
+            ${(function(){if(b.id==='ALIŞVERİŞ'){return '<div class="m-edit-field"><label>Son Ödeme</label><input value="Ödendi ✓" readonly style="color:#15803d;font-weight:700;background:#f0fdf4"></div>';}else{return '<div class="m-edit-field"><label>Son Ödeme</label><input value="'+(r.tarih||'')+'" placeholder="GG.AA" inputmode="numeric" onblur="rUp(\''+b.id+'\','+i+',\'tarih\',this.value)"></div>';}})()}
             <div class="m-edit-field"><label>Taksit</label><input type="number" inputmode="numeric" value="${r.taksit||''}" placeholder="—" onchange="rUp('${b.id}',${i},'taksit',this.value)"></div>
             <div class="m-edit-field"><label>Taksit No</label><input readonly value="${tIdx>0?tIdx+' / '+r.taksit:''}" placeholder="—" style="color:var(--muted)"></div>
           </div>
@@ -807,6 +826,7 @@ function rUp(bId,i,k,v){
     row.tutar_raw=v;const n=evalSafe(v);
     row.tutar=(bId==='YATIRIM')?Math.abs(n):-Math.abs(n);
     if(bId==='YATIRIM'&&row.miktar&&row.birim){row.tutar=evalSafe(row.miktar)*evalSafe(row.birim);row.tutar_raw=String(row.tutar);}
+    if(bId==='ALIŞVERİŞ'&&n&&n!==0)row.isPaid=true;
   }else if(k==='miktar'||k==='birim'){
     row[k]=v;
     if(row.miktar&&row.birim){const calc=evalSafe(row.miktar)*evalSafe(row.birim);row.tutar=calc;row.tutar_raw=String(calc);}
@@ -882,8 +902,7 @@ function propagate(startY,startAy,bId,row){
           newR.tarih=fmtDate(adjPrev(targetDate));
           newR.baseDay=bd; // baseDay'i koru, bir sonraki ay için
         }else if(steps>0){
-          // baseDay yoksa (eski veri): ay sonu iş günü
-          newR.tarih=fmtDate(getLastBiz(targetY,mIdx));
+          // baseDay yoksa: tarihi olduğu gibi bırak
         }
         // copy için baseDay yoksa tarihi olduğu gibi bırak
       }
@@ -994,7 +1013,39 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 let _resizeTimer;
 window.addEventListener('resize',()=>{clearTimeout(_resizeTimer);_resizeTimer=setTimeout(()=>refresh(),300);});
 
+try{
+  if(window._firebaseFailed||typeof firebase==='undefined'){
+    // Firebase yüklenemedi - offline modda başlat
+    setSyncStatus(false);
+    const local=localStorage.getItem('butce_offline');
+    if(local){try{db_data=JSON.parse(local);}catch(e){}}
+    if(!Object.keys(db_data.years).length)initYear(currentView.y,false);
+    refresh();
+  } else {
+    // Eğer 4 saniye içinde yüklenmediyse zorla başlat
+setTimeout(function(){
+  const sub=document.getElementById('mob-subtitle');
+  if(sub&&sub.textContent==='Yükleniyor…'){
+    try{
+      const local=localStorage.getItem('butce_offline');
+      if(local)db_data=JSON.parse(local);
+    }catch(e){}
+    if(!Object.keys(db_data.years).length)initYear(currentView.y,false);
+    setSyncStatus(false);
+    refresh();
+  }
+},4000);
 loadSync();
+  }
+}catch(e){
+  // Herhangi bir hata - offline modda başlat
+  try{
+    const local=localStorage.getItem('butce_offline');
+    if(local)db_data=JSON.parse(local);
+  }catch(e2){}
+  if(!Object.keys(db_data.years).length)initYear(currentView.y,false);
+  refresh();
+}
 </script>
 </body>
 </html>
